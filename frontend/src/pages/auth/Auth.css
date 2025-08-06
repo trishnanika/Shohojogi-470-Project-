@@ -1,0 +1,153 @@
+/* Converted from SCSS to CSS */
+
+/* Role Selection Styles */
+.role-selection {
+  margin-bottom: 1.5rem;
+}
+.role-selection label {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: block;
+  color: var(--primary-color, #6c63ff);
+}
+.role-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+.role-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid #e0e4ff;
+  border-radius: 12px;
+  background: #f7f8ff;
+  color: #6c63ff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  outline: none;
+  min-width: 0;
+}
+.role-btn.active, .role-btn:focus {
+  border-color: #6c63ff;
+  background: #e9e6ff;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(108,99,255,0.08);
+}
+.role-btn .role-icon {
+  font-size: 1.5rem;
+}
+.role-btn .role-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.role-btn .role-text strong {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #6c63ff;
+}
+.role-btn.active .role-text strong {
+  color: #fff;
+}
+.role-btn .role-text small {
+  font-size: 0.85rem;
+  color: #8a8bb3;
+}
+.role-btn.active .role-text small {
+  color: #e0e4ff;
+}
+
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+}
+.auth-card {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(108,99,255,0.1);
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 450px;
+  margin: 2rem auto;
+  border: 1px solid rgba(108,99,255,0.05);
+}
+.auth-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.auth-header h2 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+.form-group {
+  margin-bottom: 1.5rem;
+}
+.input-wrapper {
+  position: relative;
+}
+.input-wrapper input {
+  width: 100%;
+  padding-right: 2.5rem;
+}
+.input-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+}
+.password-toggle {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.role-selection {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.role-btn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius-sm);
+  border: 2px solid var(--primary-color);
+  background: #fff;
+  color: var(--primary-color);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.role-btn.selected, .role-btn:active {
+  background: var(--primary-color);
+  color: #fff;
+}
+.error-message {
+  color: var(--error-color);
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+.btn {
+  width: 100%;
+  margin-top: 1rem;
+}
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 1.5rem 0.5rem;
+  }
+} 

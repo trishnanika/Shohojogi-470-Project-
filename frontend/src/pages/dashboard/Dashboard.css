@@ -1,0 +1,389 @@
+/* Converted from SCSS to CSS */
+.dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #f8f9ff;
+}
+.dashboard-sidebar {
+  width: 240px;
+  background: linear-gradient(135deg, #f0f2ff 0%, #e8eaff 100%);
+  border-right: 1px solid rgba(108,99,255,0.1);
+  padding: 2rem 1rem 2rem 1.5rem;
+  box-shadow: 2px 0 12px rgba(108,99,255,0.08);
+  min-height: 100vh;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.dashboard-sidebar nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.dashboard-sidebar nav ul li {
+  margin-bottom: 1.2rem;
+}
+.dashboard-sidebar nav ul li a,
+.dashboard-sidebar nav ul li button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.08rem;
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  padding: 0.7rem 1rem;
+  border-radius: var(--border-radius-sm);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+.dashboard-sidebar nav ul li.active a,
+.dashboard-sidebar nav ul li a:hover,
+.dashboard-sidebar nav ul li button:hover {
+  background: var(--primary-light);
+  color: var(--primary-color);
+}
+.sidebar-logout {
+  color: var(--error-color) !important;
+  font-weight: 600;
+}
+.dashboard {
+  flex: 1;
+  padding: 2.5rem 2rem;
+  min-width: 0;
+  background: #fafbff;
+  border-radius: 0 18px 18px 0;
+  box-shadow: 0 2px 16px rgba(108,99,255,0.04);
+}
+.stats-grid {
+  margin-bottom: 2.5rem;
+}
+.stat-card {
+  border-radius: 18px;
+  box-shadow: 0 2px 16px rgba(108,99,255,0.07), 0 1.5px 4px rgba(0,0,0,0.03);
+  background: #fff;
+  padding: 2rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  transition: box-shadow 0.18s, transform 0.18s;
+}
+.stat-card:hover {
+  box-shadow: 0 4px 24px rgba(108,99,255,0.13), 0 2px 8px rgba(0,0,0,0.06);
+  transform: translateY(-2px) scale(1.02);
+}
+.stat-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  box-shadow: 0 2px 8px rgba(108,99,255,0.08);
+}
+.stat-content h3 {
+  font-size: 2.1rem;
+  font-weight: 700;
+  margin: 0 0 0.2em 0;
+  color: var(--primary-color);
+}
+.stat-content p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 1.02rem;
+}
+.dashboard-header h1 {
+  font-size: 2.3rem;
+  font-weight: 800;
+  color: var(--primary-color);
+  margin-bottom: 0.3rem;
+  text-align: center;
+}
+.dashboard-header p {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+.dashboard .dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 2rem;
+}
+.dashboard .section {
+  background: white;
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+.dashboard .section h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+.dashboard .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.dashboard .section-header h2 {
+  margin: 0;
+}
+.dashboard .quick-search {
+  margin-bottom: 2rem;
+}
+.dashboard .search-box {
+  display: flex;
+  align-items: center;
+  background: white;
+  border-radius: var(--border-radius);
+  padding: 0.5rem;
+  box-shadow: var(--shadow-sm);
+  gap: 0.5rem;
+}
+.dashboard .search-icon {
+  color: var(--text-secondary);
+  margin-left: 0.5rem;
+}
+.dashboard .search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 0.75rem;
+  font-size: 1rem;
+}
+.dashboard .search-input::placeholder {
+  color: var(--text-secondary);
+}
+.dashboard .btn {
+  margin: 0;
+}
+.dashboard .search-list, .dashboard .provider-list, .dashboard .booking-list, .dashboard .service-list, .dashboard .activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.dashboard .search-item, .dashboard .provider-item, .dashboard .booking-item, .dashboard .service-item, .dashboard .activity-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--bg-light);
+  border-radius: var(--border-radius-sm);
+  transition: background-color 0.2s;
+}
+.dashboard .search-item:hover, .dashboard .provider-item:hover, .dashboard .booking-item:hover, .dashboard .service-item:hover, .dashboard .activity-item:hover {
+  background: var(--bg-lighter);
+}
+.dashboard .search-info h4, .dashboard .provider-info h4, .dashboard .booking-info h4, .dashboard .service-info h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.dashboard .search-info p, .dashboard .provider-info p, .dashboard .booking-info p, .dashboard .service-info p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+.dashboard .category {
+  background: var(--primary-light);
+  color: var(--primary-color);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.dashboard .rating {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.dashboard .stars {
+  color: var(--warning-color);
+}
+.dashboard .rating-text {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.dashboard .date {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+.dashboard .status {
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.dashboard .status-active, .dashboard .status-completed {
+  background: var(--success-light);
+  color: var(--success-color);
+}
+.dashboard .status-scheduled {
+  background: var(--accent-light);
+  color: var(--accent-color);
+}
+.dashboard .status-inactive {
+  background: var(--error-light);
+  color: var(--error-color);
+}
+.dashboard .amount {
+  font-weight: 600;
+  color: var(--success-color);
+}
+.dashboard .bookings {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+.dashboard .service-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+.dashboard .service-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.dashboard .earnings-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+.dashboard .earning-item {
+  text-align: center;
+  padding: 1rem;
+  background: var(--bg-light);
+  border-radius: var(--border-radius-sm);
+}
+.dashboard .earning-item h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.dashboard .earning-item .amount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--success-color);
+  margin: 0;
+}
+.dashboard .action-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+.dashboard .action-buttons .btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+}
+.dashboard .action-buttons .btn svg {
+  width: 16px;
+  height: 16px;
+}
+@media (max-width: 900px) {
+  .dashboard-layout {
+    flex-direction: column;
+  }
+  .dashboard-sidebar {
+    width: 100%;
+    min-height: auto;
+    border-right: none;
+    border-bottom: 1px solid #ececec;
+    box-shadow: none;
+    padding: 1rem 0.5rem;
+    position: static;
+    background: linear-gradient(135deg, #e6e6ff 0%, #d1c4e9 100%);
+  }
+  .dashboard {
+    padding: 1.5rem 0.5rem;
+    border-radius: 0 0 18px 18px;
+  }
+}
+@media (max-width: 600px) {
+  .dashboard-header h1 {
+    font-size: 1.5rem;
+  }
+  .stat-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.2rem 0.8rem;
+  }
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+  .stat-content h3 {
+    font-size: 1.3rem;
+  }
+}
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 1rem;
+  }
+  .dashboard .dashboard-header h1 {
+    font-size: 2rem;
+  }
+  .dashboard .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+  .dashboard .stat-card {
+    padding: 1rem;
+  }
+  .dashboard .stat-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 1.25rem;
+  }
+  .dashboard .stat-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+  .dashboard .stat-content h3 {
+    font-size: 1.5rem;
+  }
+  .dashboard .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  .dashboard .section {
+    padding: 1rem;
+  }
+  .dashboard .action-buttons {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .dashboard .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .dashboard .action-buttons {
+    grid-template-columns: 1fr;
+  }
+  .dashboard .search-item, .dashboard .provider-item, .dashboard .booking-item, .dashboard .service-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .dashboard .service-stats, .dashboard .service-actions {
+    align-self: stretch;
+    justify-content: space-between;
+    flex-direction: row;
+  }
+} 
