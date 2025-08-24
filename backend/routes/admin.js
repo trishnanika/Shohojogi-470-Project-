@@ -1,69 +1,23 @@
 const express = require('express');
 const { protect, adminOnly } = require('../middlewares/auth');
-const User = require('../models/User');
+const Provider = require('../models/Provider');
+const Seeker = require('../models/Seeker');
 const Service = require('../models/Service');
+const {
+  getAllUsers,
+  deleteUser,
+  getAllPosts,
+  deletePost,
+  banUser,
+  unbanUser,
+  getDashboardStats
+} = require('../controllers/adminController');
 
 const router = express.Router();
 
 // Apply admin middleware to all routes
 router.use(protect, adminOnly);
 
-// @desc    Get admin dashboard stats
-// @route   GET /api/admin/dashboard
-// @access  Private/Admin
-const getDashboardStats = async (req, res) => {
-  try {
-    const totalUsers = await User.countDocuments({ role: { $ne: 'admin' } });
-    const totalProviders = await User.countDocuments({ role: 'provider' });
-    const totalSeekers = await User.countDocuments({ role: 'seeker' });
-    const totalServices = await Service.countDocuments();
-    const activeServices = await Service.countDocuments({ isAvailable: true });
-    const inactiveServices = await Service.countDocuments({ isAvailable: false });
-
-    // Get recent users
-    const recentUsers = await User.find({ role: { $ne: 'admin' } })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .select('name email role createdAt');
-
-    // Get recent services
-    const recentServices = await Service.find()
-      .populate('provider', 'name email')
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .select('title category provider createdAt');
-
-    // Get users by city
-    const usersByCity = await User.aggregate([
-      { $match: { role: { $ne: 'admin' } } },
-      { $group: { _id: '$location.city', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        stats: {
-          totalUsers,
-          totalProviders,
-          totalSeekers,
-          totalServices,
-          activeServices,
-          inactiveServices
-        },
-        recentUsers,
-        recentServices,
-        usersByCity
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching dashboard stats',
-      error: error.message
-    });
-  }
-};
 
 // @desc    Get all services (admin view)
 // @route   GET /api/admin/services
@@ -169,10 +123,94 @@ const deleteService = async (req, res) => {
   }
 };
 
-// Routes
-router.get('/dashboard', getDashboardStats);
+// Dashboard Route
+router.get('/stats', getDashboardStats);
+
+// User Management Routes
+router.get('/users', getAllUsers);
+router.delete('/users/:role/:id', deleteUser);
+router.put('/users/:role/:id/ban', banUser);
+router.put('/users/:role/:id/unban', unbanUser);
+router.patch('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body;
+    
+    // Find user in both Provider and Seeker collections
+    let user = await Provider.findById(id);
+    let Model = Provider;
+    
+    if (!user) {
+      user = await Seeker.findById(id);
+      Model = Seeker;
+    }
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    if (action === 'ban') {
+      user.isBanned = true;
+      user.bannedAt = new Date();
+    } else if (action === 'unban') {
+      user.isBanned = false;
+      user.bannedAt = undefined;
+    }
+    
+    await user.save();
+    
+    res.status(200).json({
+      success: true,
+      message: `User ${action}ned successfully`,
+      data: user
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error updating user',
+      error: error.message
+    });
+  }
+});
+
+// Post Management Routes
+router.get('/posts', getAllPosts);
+router.delete('/posts/:id', deletePost);
+
+// Service Management Routes
 router.get('/services', getAllServices);
 router.put('/services/:id/toggle-featured', toggleServiceFeatured);
 router.delete('/services/:id', deleteService);
+router.patch('/services/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body;
+    
+    const service = await Service.findById(id);
+    
+    if (!service) {
+      return res.status(404).json({ success: false, message: 'Service not found' });
+    }
+    
+    if (action === 'delete') {
+      await service.deleteOne();
+      return res.status(200).json({
+        success: true,
+        message: 'Service deleted successfully'
+      });
+    }
+    
+    res.status(400).json({
+      success: false,
+      message: 'Invalid action'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error updating service',
+      error: error.message
+    });
+  }
+});
 
-module.exports = router; 
+module.exports = router;

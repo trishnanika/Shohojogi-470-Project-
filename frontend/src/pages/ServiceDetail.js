@@ -1,76 +1,73 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { FaStar, FaMapMarkerAlt, FaPhone, FaEnvelope } from 'react-icons/fa';
+import { FaStar, FaMapMarkerAlt } from 'react-icons/fa';
+import api from '../utils/api';
+import './ServiceDetail.css';
 
 const ServiceDetail = () => {
   const { id } = useParams();
+  const [service, setService] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // TODO: Fetch service details from API
-  const service = {
-    id: id,
-    title: 'Professional Home Cleaning',
-    description: 'Complete home cleaning service with professional equipment and eco-friendly products. We provide thorough cleaning for all areas of your home including kitchen, bathroom, living areas, and bedrooms.',
-    category: 'Cleaning',
-    price: 1500,
-    location: 'Dhaka',
-    provider: 'Clean Pro Services',
-    rating: 4.8,
-    reviews: 45,
-    image: 'https://via.placeholder.com/600x400',
-    contact: {
-      phone: '+880 1712345678',
-      email: 'info@cleanpro.com'
-    }
-  };
+  useEffect(() => {
+    const fetchService = async () => {
+      try {
+        const { data } = await api.get(`/api/services/${id}`);
+        setService(data.data);
+      } catch (e) {
+        setError('Failed to load service');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchService();
+  }, [id]);
+
+  if (loading) return <div className="service-detail-page"><div className="sd-loading">Loading...</div></div>;
+  if (error) return <div className="service-detail-page"><div className="sd-error">{error}</div></div>;
+  if (!service) return null;
 
   return (
     <div className="service-detail-page">
-      <div className="service-detail-container">
-        <div className="service-image">
-          <img src={service.image} alt={service.title} />
-        </div>
-        
-        <div className="service-info">
-          <h1>{service.title}</h1>
-          <div className="service-meta">
-            <span className="category">{service.category}</span>
-            <div className="rating">
-              <FaStar />
-              <span>{service.rating}</span>
-              <span>({service.reviews} reviews)</span>
-            </div>
+      <div className="sd-container">
+        <div className="sd-card">
+          <div className="sd-image">
+            <img src={service.images?.[0] || 'https://via.placeholder.com/800x520'} alt={service.title} />
+            <span className="sd-chip sd-category">{service.category}</span>
           </div>
-          
-          <div className="service-location">
-            <FaMapMarkerAlt />
-            <span>{service.location}</span>
-          </div>
-          
-          <div className="service-description">
-            <h3>Description</h3>
-            <p>{service.description}</p>
-          </div>
-          
-          <div className="service-provider">
-            <h3>Service Provider</h3>
-            <div className="provider-info">
-              <h4>{service.provider}</h4>
-              <div className="contact-info">
-                <div className="contact-item">
-                  <FaPhone />
-                  <span>{service.contact.phone}</span>
-                </div>
-                <div className="contact-item">
-                  <FaEnvelope />
-                  <span>{service.contact.email}</span>
-                </div>
+          <div className="sd-content">
+            <h1 className="sd-title">{service.title}</h1>
+            <div className="sd-meta">
+              <div className="sd-rating">
+                <FaStar />
+                <span>{service.rating || 0}</span>
+                <span className="sd-reviews">({service.totalReviews || 0} reviews)</span>
+              </div>
+              <div className="sd-location">
+                <FaMapMarkerAlt />
+                <span>{service.location?.city} {service.location?.area ? `• ${service.location.area}` : ''}</span>
+              </div>
+              <div className="sd-price">
+                <span className="sd-price-amount">৳{service.price}</span>
+                {service.priceType && <span className="sd-price-type">{service.priceType}</span>}
               </div>
             </div>
-          </div>
-          
-          <div className="service-actions">
-            <div className="price">৳{service.price}</div>
-            <button className="btn btn-primary">Book Now</button>
+
+            <div className="sd-section">
+              <h3>Description</h3>
+              <p>{service.description}</p>
+            </div>
+
+            <div className="sd-section">
+              <h3>Provider</h3>
+              <div className="sd-provider-name">{typeof service.provider === 'object' ? service.provider?.name : service.provider}</div>
+              {/* Contact details intentionally hidden for privacy until chat is implemented */}
+            </div>
+
+            <div className="sd-actions">
+              <button className="btn btn-primary">Book Now</button>
+            </div>
           </div>
         </div>
       </div>

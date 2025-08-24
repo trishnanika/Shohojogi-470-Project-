@@ -1,10 +1,12 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Provider = require('../models/Provider');
+const Seeker = require('../models/Seeker');
 
 // Generate JWT Token
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'sohojogi_jwt_secret_key_2024', {
-    expiresIn: process.env.JWT_EXPIRE || '30d'
+const generateToken = (id, role) => {
+  return jwt.sign({ id, role }, process.env.JWT_SECRET || 'sohojogi_jwt_secret_key_2024', {
+    expiresIn: process.env.JWT_EXPIRE || '30d',
   });
 };
 
@@ -13,52 +15,37 @@ const generateToken = (id) => {
 // @access  Public
 const register = async (req, res) => {
   try {
-    const { name, email, password, phone, location, role } = req.body;
+    const { email, role } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already exists with this email'
-      });
-    }
-
-    // Validate role
     if (!['seeker', 'provider'].includes(role)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid role. Must be either "seeker" or "provider"'
-      });
+      return res.status(400).json({ success: false, message: 'Invalid role.' });
     }
 
-    // Create user
-    const user = await User.create({
-      name,
-      email,
-      password,
-      phone,
-      location,
-      role
-    });
+    const existingUser = await User.findOne({ email });
+    const existingProvider = await Provider.findOne({ email });
+    const existingSeeker = await Seeker.findOne({ email });
 
-    // Generate token
-    const token = generateToken(user._id);
+    if (existingUser || existingProvider || existingSeeker) {
+      return res.status(400).json({ success: false, message: 'Email already in use.' });
+    }
+
+    let user;
+    if (role === 'provider') {
+      user = await Provider.create(req.body);
+    } else {
+      user = await Seeker.create(req.body);
+    }
+
+    const token = generateToken(user._id, user.role);
 
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
-      data: {
-        user,
-        token
-      }
+      token,
+      user,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error registering user',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
@@ -67,75 +54,77 @@ const register = async (req, res) => {
 // @access  Public
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    
-    // Validate email and password
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide email and password'
-      });
+    console.log('Login request received:', req.body);
+    const { email, password, role } = req.body;
+
+    if (!email || !password || !role) {
+      console.log('Missing credentials');
+      return res.status(400).json({ success: false, message: 'Please provide email, password, and role.' });
     }
 
-    // Hardcoded admin credentials
-    const ADMIN_EMAIL = 'admin.shohojogi@gmail.com';
-    const ADMIN_PASSWORD = 'admin123';
-
-    // Check for hardcoded admin credentials first
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      const token = generateToken('admin-id');
-      
-      return res.status(200).json({
-        success: true,
-        token,
-        role: 'admin',
-        message: 'Admin login successful'
-      });
+    // Handle hardcoded admin login - ONLY check hardcoded credentials for admin
+    if (role === 'admin') {
+      if (email === 'admin.shohojogi@gmail.com' && password === 'admin123') {
+        console.log('Admin login successful');
+        const adminUser = {
+          _id: 'default-admin-id',
+          name: 'Admin User',
+          email: 'admin.shohojogi@gmail.com',
+          role: 'admin',
+        };
+        const token = generateToken(adminUser._id, adminUser.role);
+        return res.status(200).json({
+          success: true,
+          message: 'Login successful',
+          token,
+          user: adminUser,
+        });
+      } else {
+        console.log('Invalid admin credentials');
+        return res.status(401).json({ success: false, message: 'Invalid admin credentials.' });
+      }
     }
 
-    // If not admin, check for regular user in database
-    const user = await User.findOne({ email }).select('+password');
-    
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
+    let Model;
+
+    switch (role) {
+      case 'provider':
+        Model = Provider;
+        break;
+      case 'seeker':
+        Model = Seeker;
+        break;
+      default:
+        return res.status(400).json({ success: false, message: 'Invalid role specified.' });
     }
 
-    // Check if password matches
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
+    const user = await Model.findOne({ email }).select('+password');
+
+    if (!user || !(await user.comparePassword(password))) {
+      console.log('Invalid credentials');
+      return res.status(401).json({ success: false, message: 'Invalid credentials.' });
     }
 
-    // Check if user is active
-    if (!user.isActive) {
-      return res.status(401).json({
-        success: false,
-        message: 'Account is deactivated'
-      });
+    // Check if user is banned
+    if (user.isBanned) {
+      console.log('User is banned');
+      return res.status(403).json({ success: false, message: 'Your account has been banned. Please contact support.' });
     }
 
-    // Generate token for regular user
-    const token = generateToken(user._id);
-    
+    if (user.isActive === false) {
+      return res.status(403).json({ success: false, message: 'Account is deactivated.' });
+    }
+
+    const token = generateToken(user._id, user.role);
+
     res.status(200).json({
       success: true,
+      message: 'Login successful',
       token,
-      role: user.role,
-      message: 'Login successful'
+      user,
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error logging in',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
@@ -144,18 +133,44 @@ const login = async (req, res) => {
 // @access  Private
 const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-    
-    res.status(200).json({
-      success: true,
-      data: user
-    });
+    const { id, role } = req.user;
+
+    // Handle hardcoded admin user
+    if (id === 'default-admin-id' && role === 'admin') {
+      return res.status(200).json({ 
+        success: true, 
+        data: {
+          _id: 'default-admin-id',
+          name: 'Admin User',
+          email: 'admin.shohojogi@gmail.com',
+          role: 'admin',
+        }
+      });
+    }
+
+    let user;
+
+    switch (role) {
+      case 'admin':
+        user = await User.findById(id);
+        break;
+      case 'provider':
+        user = await Provider.findById(id);
+        break;
+      case 'seeker':
+        user = await Seeker.findById(id);
+        break;
+      default:
+        return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    res.status(200).json({ success: true, data: user });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error getting user data',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 

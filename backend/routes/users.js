@@ -7,7 +7,9 @@ const {
   updateProfile,
   getProviders,
   deleteUser,
-  toggleUserStatus
+  toggleUserStatus,
+  getMyNotifications,
+  markNotificationRead
 } = require('../controllers/userController');
 
 const router = express.Router();
@@ -60,5 +62,7 @@ router.get('/:id', getUser);
 router.put('/profile', validateProfileUpdate, updateProfile);
 router.delete('/:id', adminOnly, deleteUser);
 router.put('/:id/toggle-status', adminOnly, toggleUserStatus);
+router.get('/notifications/me', getMyNotifications);
+router.put('/notifications/:notificationId/read', markNotificationRead);
 
 module.exports = router; 

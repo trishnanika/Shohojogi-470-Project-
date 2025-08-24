@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { FiHome, FiUser, FiSettings, FiLogOut, FiUsers, FiTool, FiBarChart, FiClipboard, FiPlus, FiList, FiSearch, FiHeart, FiClock, FiCalendar, FiStar } from 'react-icons/fi';
+import { FiHome, FiUser, FiSettings, FiLogOut, FiUsers, FiTool, FiBarChart, FiPlus, FiList, FiSearch, FiHeart, FiClock, FiCalendar, FiStar, FiMessageSquare, FiFileText, FiUserCheck } from 'react-icons/fi';
 import './Dashboard.css';
 
-const Sidebar = ({ onPostServiceClick }) => {
+const Sidebar = ({ onPostServiceClick, onSectionChange, activeSection }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
 
@@ -13,31 +13,31 @@ const Sidebar = ({ onPostServiceClick }) => {
   let links = [];
   if (user.role === 'admin') {
     links = [
-      { to: '/admin', label: 'Overview', icon: <FiHome /> },
-      { to: '/admin/users', label: 'Manage Users', icon: <FiUsers /> },
-      { to: '/admin/services', label: 'Manage Services', icon: <FiTool /> },
-      { to: '/admin/reports', label: 'Reports', icon: <FiBarChart /> },
+      { type: 'section', section: 'dashboard', label: 'Overview', icon: <FiHome /> },
+      { type: 'section', section: 'users', label: 'Manage Users', icon: <FiUsers /> },
+      { type: 'section', section: 'manage-posts', label: 'Manage Posts', icon: <FiTool /> },
       { to: '/profile', label: 'Profile', icon: <FiUser /> },
       { to: '/profile/edit', label: 'Settings', icon: <FiSettings /> },
     ];
   } else if (user.role === 'provider') {
     links = [
-      { to: '/provider', label: 'Dashboard', icon: <FiHome /> },
-      { type: 'postService', label: 'Post Service', icon: <FiPlus /> },
-      { to: '/my-services', label: 'My Services', icon: <FiList /> },
-      { to: '/provider/bookings', label: 'Bookings', icon: <FiCalendar /> },
-      { to: '/provider/earnings', label: 'Earnings', icon: <FiStar /> },
+      { type: 'section', section: 'dashboard', label: 'Dashboard', icon: <FiHome /> },
+      { type: 'section', section: 'createPost', label: 'Create Post', icon: <FiPlus /> },
+      { type: 'section', section: 'applications', label: 'Applications', icon: <FiUserCheck /> },
+      { type: 'section', section: 'messages', label: 'Messages', icon: <FiMessageSquare /> },
+      { type: 'section', section: 'myPosts', label: 'My Posts', icon: <FiFileText /> },
       { to: '/profile', label: 'Profile', icon: <FiUser /> },
-      { to: '/profile/edit', label: 'Settings', icon: <FiSettings /> },
+      { type: 'section', section: 'settings', label: 'Settings', icon: <FiSettings /> },
     ];
   } else if (user.role === 'seeker') {
     links = [
-      { to: '/seeker', label: 'Dashboard', icon: <FiHome /> },
-      { to: '/services', label: 'Find Services', icon: <FiSearch /> },
-      { to: '/seeker/favorites', label: 'Favorites', icon: <FiHeart /> },
-      { to: '/seeker/bookings', label: 'Bookings', icon: <FiClock /> },
+      { type: 'section', section: 'dashboard', label: 'Dashboard', icon: <FiHome /> },
+      { type: 'section', section: 'createPost', label: 'Create Post', icon: <FiPlus /> },
+      { type: 'section', section: 'myPosts', label: 'My Posts', icon: <FiFileText /> },
+      { type: 'section', section: 'messages', label: 'Messages', icon: <FiMessageSquare /> },
+      { type: 'section', section: 'hireHistory', label: 'Hire History', icon: <FiClock /> },
       { to: '/profile', label: 'Profile', icon: <FiUser /> },
-      { to: '/profile/edit', label: 'Settings', icon: <FiSettings /> },
+      { type: 'section', section: 'settings', label: 'Settings', icon: <FiSettings /> },
     ];
   }
 
@@ -46,9 +46,9 @@ const Sidebar = ({ onPostServiceClick }) => {
       <nav>
         <ul>
           {links.map(link => (
-            link.type === 'postService' && onPostServiceClick ? (
-              <li key="postService">
-                <button className={"sidebar-btn"} onClick={onPostServiceClick} style={{ background: 'none', border: 'none', color: 'inherit', width: '100%', textAlign: 'left', padding: 0, display: 'flex', alignItems: 'center', gap: 8, font: 'inherit', cursor: 'pointer' }}>
+            link.type === 'section' && onSectionChange ? (
+              <li key={link.section} className={activeSection === link.section ? 'active' : ''}>
+                <button onClick={() => onSectionChange(link.section)}>
                   {link.icon}
                   <span>{link.label}</span>
                 </button>

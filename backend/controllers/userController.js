@@ -1,11 +1,47 @@
-const User = require('../models/User');
+const Provider = require('../models/Provider');
+const Seeker = require('../models/Seeker');
+// @desc    Get my notifications
+// @route   GET /api/users/notifications
+// @access  Private
+const getMyNotifications = async (req, res) => {
+  try {
+    const { role, _id } = req.user;
+    const Model = role === 'provider' ? Provider : Seeker;
+    const user = await Model.findById(_id).select('notifications');
+    res.status(200).json({ success: true, data: user?.notifications || [] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching notifications', error: error.message });
+  }
+};
+
+// @desc    Mark notification as read
+// @route   PUT /api/users/notifications/:notificationId/read
+// @access  Private
+const markNotificationRead = async (req, res) => {
+  try {
+    const { notificationId } = req.params;
+    const { role, _id } = req.user;
+    const Model = role === 'provider' ? Provider : Seeker;
+    const user = await Model.findById(_id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    const notif = user.notifications?.id(notificationId);
+    if (!notif) return res.status(404).json({ success: false, message: 'Notification not found' });
+    notif.read = true;
+    await user.save();
+    res.status(200).json({ success: true, message: 'Notification marked as read' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error updating notification', error: error.message });
+  }
+};
 
 // @desc    Get all users (admin only)
 // @route   GET /api/users
 // @access  Private/Admin
 const getUsers = async (req, res) => {
   try {
-    const users = await User.find({ role: { $ne: 'admin' } }).select('-password');
+    const providers = await Provider.find().select('-password');
+    const seekers = await Seeker.find().select('-password');
+    const users = [...providers, ...seekers];
     
     res.status(200).json({
       success: true,
@@ -26,7 +62,10 @@ const getUsers = async (req, res) => {
 // @access  Private
 const getUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
+    let user = await Provider.findById(req.params.id).select('-password');
+    if (!user) {
+      user = await Seeker.findById(req.params.id).select('-password');
+    }
     
     if (!user) {
       return res.status(404).json({
@@ -53,41 +92,29 @@ const getUser = async (req, res) => {
 // @access  Private
 const updateProfile = async (req, res) => {
   try {
-    const {
-      name,
-      phone,
-      location,
-      profilePicture,
-      skills,
-      experience,
-      hourlyRate,
-      preferences
-    } = req.body;
+    const { role, _id } = req.user;
+    const Model = role === 'provider' ? Provider : Seeker;
 
-    const updateData = {
-      name,
-      phone,
-      location,
-      profilePicture
-    };
+    // Filter out undefined fields to avoid overwriting with null
+    const updateData = Object.fromEntries(
+      Object.entries(req.body).filter(([_, v]) => v != null)
+    );
 
-    // Add role-specific fields
-    if (req.user.role === 'provider') {
-      updateData.skills = skills;
-      updateData.experience = experience;
-      updateData.hourlyRate = hourlyRate;
-    } else if (req.user.role === 'seeker') {
-      updateData.preferences = preferences;
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
+    const user = await Model.findByIdAndUpdate(
+      _id,
       updateData,
       {
         new: true,
-        runValidators: true
+        runValidators: true,
       }
     ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -111,7 +138,6 @@ const getProviders = async (req, res) => {
     const { category, city, area, page = 1, limit = 10 } = req.query;
     
     const query = {
-      role: 'provider',
       isActive: true
     };
 
@@ -130,13 +156,13 @@ const getProviders = async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    const providers = await User.find(query)
+    const providers = await Provider.find(query)
       .select('-password')
       .sort({ rating: -1, createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    const total = await User.countDocuments(query);
+    const total = await Provider.countDocuments(query);
 
     res.status(200).json({
       success: true,
@@ -163,7 +189,10 @@ const getProviders = async (req, res) => {
 // @access  Private/Admin
 const deleteUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    let user = await Provider.findById(req.params.id);
+    if (!user) {
+      user = await Seeker.findById(req.params.id);
+    }
     
     if (!user) {
       return res.status(404).json({
@@ -192,7 +221,10 @@ const deleteUser = async (req, res) => {
 // @access  Private/Admin
 const toggleUserStatus = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    let user = await Provider.findById(req.params.id);
+    if (!user) {
+      user = await Seeker.findById(req.params.id);
+    }
     
     if (!user) {
       return res.status(404).json({
@@ -224,5 +256,7 @@ module.exports = {
   updateProfile,
   getProviders,
   deleteUser,
-  toggleUserStatus
+  toggleUserStatus,
+  getMyNotifications,
+  markNotificationRead
 }; 

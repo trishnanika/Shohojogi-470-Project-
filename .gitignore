@@ -18,6 +18,9 @@ Thumbs.db
 dist/
 build/
 
+# Uploaded files (do not commit user uploads)
+backend/uploads/
+
 # IDE files
 .vscode/
 .idea/

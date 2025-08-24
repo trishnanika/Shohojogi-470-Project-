@@ -105,72 +105,30 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  const login = async (email, password, selectedRole) => {
+  const login = async (email, password, role) => {
     dispatch({ type: 'AUTH_START' });
     try {
-      // Check for admin login first
-      const isAdmin = email === 'admin.shohojogi@gmail.com';
-      
-      if (isAdmin && password === 'admin123') {
-        const response = await api.post('/api/auth/login', { email, password });
-        
-        const adminUser = {
-          role: 'admin',
-          name: 'Admin',
-          email: email
-        };
+      const response = await api.post('/api/auth/login', { email, password, role });
 
-        dispatch({
-          type: 'AUTH_SUCCESS',
-          payload: {
-            user: adminUser,
-            token: response.data.token
-          }
-        });
-
-        toast.success('Admin login successful');
-        navigate('/admin');
-        return;
-      }
-
-      // Regular user login
-      const response = await api.post('/api/auth/login', { 
-        email, 
-        password
-      });
-
-      // Verify if user's role matches selected role
-      const userRole = response.data.role;
-      if (selectedRole && userRole !== selectedRole) {
-        throw new Error(`This account is registered as a ${userRole}. Please select the correct role.`);
-      }
-
-      const userData = {
-        ...response.data.user,
-        role: userRole,
-        email: email
-      };
+      const { user, token } = response.data;
 
       dispatch({
         type: 'AUTH_SUCCESS',
-        payload: {
-          user: userData,
-          token: response.data.token
-        }
+        payload: { user, token },
       });
 
-      toast.success('Login successful');
+      toast.success('Login successful!');
 
       // Redirect based on role
-      if (userData.role === 'provider') {
-        navigate('/provider');
-      } else if (userData.role === 'admin') {
+      if (user.role === 'admin') {
         navigate('/admin');
+      } else if (user.role === 'provider') {
+        navigate('/provider');
       } else {
         navigate('/seeker');
       }
     } catch (error) {
-      const message = error.message || error.response?.data?.message || 'Login failed';
+      const message = error.response?.data?.message || error.message || 'Login failed';
       dispatch({ type: 'AUTH_FAILURE', payload: message });
       toast.error(message);
       throw error; // Re-throw for the component to handle
@@ -186,21 +144,28 @@ export const AuthProvider = ({ children }) => {
       }
 
       const response = await api.post('/api/auth/register', userData);
-      
-      if (!response.data.data || !response.data.data.user) {
+
+      // Support both shapes:
+      // 1) { success, message, token, user }
+      // 2) { data: { token, user } }
+      const payload = response?.data?.data || response?.data;
+      const receivedUser = payload?.user;
+      const receivedToken = payload?.token;
+
+      if (!receivedUser || !receivedToken) {
         throw new Error('Invalid response from server');
       }
 
       const user = {
-        ...response.data.data.user,
-        role: userData.role // Make sure role is preserved
+        ...receivedUser,
+        role: userData.role // Preserve selected role from form
       };
-      
+
       dispatch({
         type: 'AUTH_SUCCESS',
         payload: {
           user,
-          token: response.data.data.token
+          token: receivedToken
         }
       });
 

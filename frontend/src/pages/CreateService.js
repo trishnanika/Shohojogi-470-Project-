@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../utils/api';
 
 const initialForm = {
   title: '',
   category: '',
   price: '',
+  priceType: '',
   description: '',
-  location: ''
+  location: { city: '', area: '' }
 };
 
 const CreateService = () => {
@@ -29,7 +30,12 @@ const CreateService = () => {
   }
 
   const handleChange = e => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'city' || name === 'area') {
+      setForm({ ...form, location: { ...form.location, [name]: value } });
+    } else {
+      setForm({ ...form, [name]: value });
+    }
   };
 
   const handleSubmit = async e => {
@@ -38,9 +44,7 @@ const CreateService = () => {
     setError('');
     setSuccess('');
     try {
-      const res = await axios.post('/api/services', form, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const res = await api.post('/api/services', form);
       setSuccess('Service posted successfully!');
       setForm(initialForm);
       setTimeout(() => navigate('/services'), 1200);
@@ -61,19 +65,42 @@ const CreateService = () => {
         </label>
         <label style={{ color: '#fff' }}>
           Category:
-          <input type="text" name="category" value={form.category} onChange={handleChange} required style={{ width: '100%', padding: 10, borderRadius: 8, border: 'none', margin: '8px 0 18px 0' }} />
+          <select name="category" value={form.category} onChange={handleChange} required style={{ width: '100%', padding: 10, borderRadius: 8, border: 'none', margin: '8px 0 18px 0' }}>
+            <option value="">Select Category</option>
+            {['Tutor','Electrician','Plumber','Carpenter','Painter','Parcel Delivery','Home Repair','Cleaning','Gardening','Cooking','Photography','Event Management','Transportation','Beauty Services','Pet Care','Other'].map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
         </label>
         <label style={{ color: '#fff' }}>
           Price (৳):
           <input type="number" name="price" value={form.price} onChange={handleChange} required style={{ width: '100%', padding: 10, borderRadius: 8, border: 'none', margin: '8px 0 18px 0' }} />
         </label>
         <label style={{ color: '#fff' }}>
+          Price Type:
+          <select name="priceType" value={form.priceType} onChange={handleChange} required style={{ width: '100%', padding: 10, borderRadius: 8, border: 'none', margin: '8px 0 18px 0' }}>
+            <option value="">Select Price Type</option>
+            {['hourly','fixed','negotiable'].map(pt => (
+              <option key={pt} value={pt}>{pt}</option>
+            ))}
+          </select>
+        </label>
+        <label style={{ color: '#fff' }}>
           Description:
           <textarea name="description" value={form.description} onChange={handleChange} required rows={3} style={{ width: '100%', padding: 10, borderRadius: 8, border: 'none', margin: '8px 0 18px 0' }} />
         </label>
         <label style={{ color: '#fff' }}>
-          Location:
-          <input type="text" name="location" value={form.location} onChange={handleChange} required style={{ width: '100%', padding: 10, borderRadius: 8, border: 'none', margin: '8px 0 18px 0' }} />
+          City:
+          <select name="city" value={form.location.city} onChange={handleChange} required style={{ width: '100%', padding: 10, borderRadius: 8, border: 'none', margin: '8px 0 18px 0' }}>
+            <option value="">Select City</option>
+            {['Dhaka','Chittagong','Sylhet','Rajshahi','Khulna','Barisal','Rangpur','Mymensingh','Comilla','Noakhali'].map(city => (
+              <option key={city} value={city}>{city}</option>
+            ))}
+          </select>
+        </label>
+        <label style={{ color: '#fff' }}>
+          Area:
+          <input type="text" name="area" value={form.location.area} onChange={handleChange} required style={{ width: '100%', padding: 10, borderRadius: 8, border: 'none', margin: '8px 0 18px 0' }} />
         </label>
         <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: 12, borderRadius: 8, background: 'linear-gradient(90deg, #7f53ac 0%, #647dee 100%)', color: '#fff', fontWeight: 700, fontSize: 18, border: 'none', marginTop: 10 }} disabled={loading}>
           {loading ? 'Posting...' : 'Post Service'}

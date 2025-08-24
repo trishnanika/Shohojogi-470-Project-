@@ -5,11 +5,27 @@ require('dotenv').config({ path: './config.env' });
 // Import User model
 const User = require('../models/User');
 
+const adminData = {
+  name: 'Admin',
+  email: process.env.ADMIN_EMAIL,
+  password: await bcrypt.hash(process.env.ADMIN_PASSWORD, 12),
+  role: 'admin',
+  isVerified: true
+};
+
 const initAdmin = async () => {
   try {
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    });
     console.log('Connected to MongoDB');
+    
+    // List all databases to verify connection
+    const adminDb = mongoose.connection.db.admin();
+    const result = await adminDb.listDatabases();
+    console.log('Available databases:', result.databases.map(db => db.name));
 
     // Check if admin already exists
     const existingAdmin = await User.findOne({ 
@@ -21,21 +37,6 @@ const initAdmin = async () => {
       console.log('Admin user already exists');
       process.exit(0);
     }
-
-    // Create admin user
-    const adminData = {
-      name: 'SohoJogi Admin',
-      email: process.env.ADMIN_EMAIL,
-      password: process.env.ADMIN_PASSWORD,
-      phone: '+8801700000000',
-      role: 'admin',
-      location: {
-        city: 'Dhaka',
-        area: 'Gulshan'
-      },
-      isVerified: true,
-      isActive: true
-    };
 
     const admin = await User.create(adminData);
 

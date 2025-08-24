@@ -50,7 +50,7 @@ const validateLogin = [
 
 // Routes
 router.post('/register', validateRegistration, register);
-router.post('/login', validateLogin, login);
+router.post('/login', login);
 router.get('/me', protect, getMe);
 router.post('/logout', protect, logout);
 

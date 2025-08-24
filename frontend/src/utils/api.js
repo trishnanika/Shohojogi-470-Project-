@@ -28,8 +28,17 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      const url = error.config?.url || '';
+      const isAuthEndpoint = url.includes('/api/auth/login') || url.includes('/api/auth/register');
+      const currentPath = window.location?.pathname || '';
+      const isOnAuthPage = currentPath.startsWith('/login') || currentPath.startsWith('/register');
+      if (!isAuthEndpoint) {
+        localStorage.removeItem('token');
+        // Avoid hard reload while already on auth pages to prevent refresh loop
+        if (!isOnAuthPage) {
+          window.location.href = '/login';
+        }
+      }
     }
     return Promise.reject(error);
   }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ToastProvider } from './components/common/Toast';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { PublicRoute } from './components/common/PublicRoute';
 
@@ -11,7 +12,6 @@ import Footer from './components/layout/Footer';
 // Public pages
 import Home from './pages/Home';
 import Login from './pages/auth/Login';
-import AdminLogin from './pages/auth/AdminLogin';
 import Register from './pages/auth/Register';
 
 // Protected pages
@@ -25,6 +25,8 @@ import Services from './pages/Services';
 import ServiceDetail from './pages/ServiceDetail';
 import CreateService from './pages/CreateService';
 import MyServices from './pages/MyServices';
+import CreatePost from './pages/CreatePost';
+import Messages from './pages/Messages';
 
 // Profile pages
 import Profile from './pages/Profile';
@@ -130,6 +132,22 @@ const AppRoutes = () => {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/create-post" 
+            element={
+              <ProtectedRoute allowedRoles={['provider', 'seeker']}>
+                <CreatePost />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/messages" 
+            element={
+              <ProtectedRoute allowedRoles={['provider', 'seeker']}>
+                <Messages />
+              </ProtectedRoute>
+            } 
+          />
 
           {/* Profile routes */}
           <Route 
@@ -161,7 +179,9 @@ const AppRoutes = () => {
 const App = () => {
   return (
     <AuthProvider>
-      <AppRoutes />
+      <ToastProvider>
+        <AppRoutes />
+      </ToastProvider>
     </AuthProvider>
   );
 };

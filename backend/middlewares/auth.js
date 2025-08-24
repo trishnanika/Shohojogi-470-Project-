@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Provider = require('../models/Provider');
+const Seeker = require('../models/Seeker');
 
 // Protect routes - verify JWT token
 const protect = async (req, res, next) => {
@@ -20,23 +22,46 @@ const protect = async (req, res, next) => {
 
     try {
       // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
-      // Get user from token
-      const user = await User.findById(decoded.id).select('-password');
-      
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: 'User not found'
-        });
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'sohojogi_jwt_secret_key_2024');
+
+      const { id, role } = decoded;
+
+      // Handle hardcoded admin user
+      if (id === 'default-admin-id' && role === 'admin') {
+        req.user = {
+          _id: 'default-admin-id',
+          name: 'Admin User',
+          email: 'admin.shohojogi@gmail.com',
+          role: 'admin',
+        };
+        return next();
       }
 
-      if (!user.isActive) {
-        return res.status(401).json({
-          success: false,
-          message: 'Account is deactivated'
-        });
+      let user;
+      let Model;
+
+      switch (role) {
+        case 'admin':
+          Model = User;
+          break;
+        case 'provider':
+          Model = Provider;
+          break;
+        case 'seeker':
+          Model = Seeker;
+          break;
+        default:
+          return res.status(401).json({ success: false, message: 'Invalid token role' });
+      }
+
+      user = await Model.findById(id).select('-password');
+
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'User not found' });
+      }
+
+      if (user.isActive === false) {
+        return res.status(401).json({ success: false, message: 'Account is deactivated' });
       }
 
       req.user = user;

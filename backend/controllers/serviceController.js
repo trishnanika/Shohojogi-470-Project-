@@ -1,5 +1,18 @@
 const Service = require('../models/Service');
+const ProviderPost = require('../models/ProviderPost');
 const User = require('../models/User');
+const Hire = require('../models/Hire');
+
+// Utility to push a notification to a user
+const pushNotification = async (userId, notification) => {
+  try {
+    await User.findByIdAndUpdate(userId, {
+      $push: { notifications: notification }
+    });
+  } catch (e) {
+    // non-fatal
+  }
+};
 
 // @desc    Create new service
 // @route   POST /api/services
@@ -31,6 +44,15 @@ const createService = async (req, res) => {
 
     // Populate provider info
     await service.populate('provider', 'name email phone profilePicture rating');
+
+    // Notify admin(s) - simplistic: notify the hardcoded admin if present in db by email
+    const adminUser = await User.findOne({ role: 'admin' });
+    if (adminUser) {
+      await pushNotification(adminUser._id, {
+        message: `New service posted: ${service.title}`,
+        type: 'booking'
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -269,7 +291,7 @@ const getServicesByProvider = async (req, res) => {
 // @access  Private/Provider
 const getMyServices = async (req, res) => {
   try {
-    const services = await Service.find({ provider: req.user.id })
+    const services = await Service.find({ provider: req.user._id })
       .populate('provider', 'name email phone profilePicture rating');
 
     res.status(200).json({
@@ -325,6 +347,52 @@ const toggleServiceAvailability = async (req, res) => {
   }
 };
 
+// @desc    Get provider dashboard stats
+// @route   GET /api/services/stats
+// @access  Private/Provider
+const getProviderStats = async (req, res) => {
+  try {
+    const providerId = req.user._id;
+    console.log('Provider stats request for:', providerId);
+
+    const [totalServices, activeServices, hires] = await Promise.all([
+      ProviderPost.countDocuments({ providerId: providerId }),
+      ProviderPost.countDocuments({ providerId: providerId, isAvailable: true }),
+      Hire.find({ providerId: providerId })
+    ]);
+    
+    console.log('Stats found:', { totalServices, activeServices, hiresCount: hires.length });
+
+    const totalHires = hires.length;
+    const completedHires = hires.filter(h => h.status === 'completed').length;
+    const totalEarnings = hires
+      .filter(h => h.status === 'completed')
+      .reduce((acc, h) => acc + (h.amount || 0), 0);
+
+    const stats = {
+      services: {
+        total: totalServices,
+        active: activeServices
+      },
+      hires: {
+        total: totalHires,
+        completed: completedHires
+      },
+      earnings: {
+        total: totalEarnings
+      }
+    };
+
+    res.status(200).json({ success: true, data: stats });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching provider stats',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createService,
   getServices,
@@ -333,5 +401,6 @@ module.exports = {
   deleteService,
   getServicesByProvider,
   getMyServices,
-  toggleServiceAvailability
-}; 
+  toggleServiceAvailability,
+  getProviderStats
+};

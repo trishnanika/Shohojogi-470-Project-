@@ -9,8 +9,7 @@ const Login = () => {
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [loginType, setLoginType] = useState('user'); // 'user' or 'admin'
-  const [selectedRole, setSelectedRole] = useState('seeker'); // For future-proofing (not used here)
+  const [role, setRole] = useState('seeker'); // 'seeker', 'provider', or 'admin'
 
   const {
     register,
@@ -22,12 +21,7 @@ const Login = () => {
   const onSubmit = async (data) => {
     setIsLoading(true);
     try {
-      // For admin login, pass email/password, backend will recognize admin
-      if (loginType === 'admin') {
-        await login(data.email, data.password, null, true); // last param isAdmin (optional)
-      } else {
-        await login(data.email, data.password, null, false);
-      }
+      await login(data.email, data.password, role);
     } catch (error) {
       console.error('Login error:', error);
       setError('email', {
@@ -47,29 +41,16 @@ const Login = () => {
           <p>Sign in to your SohoJogi account</p>
         </div>
 
-        {/* Login Type Toggle */}
-        <div className="login-type-toggle" style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', justifyContent: 'center' }}>
-          <button
-            type="button"
-            className={`btn btn-outline${loginType === 'user' ? ' active' : ''}`}
-            style={{ minWidth: 120, fontWeight: loginType === 'user' ? 700 : 500 }}
-            onClick={() => setLoginType('user')}
-            disabled={loginType === 'user'}
-          >
-            User Login
-          </button>
-          <button
-            type="button"
-            className={`btn btn-outline${loginType === 'admin' ? ' active' : ''}`}
-            style={{ minWidth: 120, fontWeight: loginType === 'admin' ? 700 : 500 }}
-            onClick={() => setLoginType('admin')}
-            disabled={loginType === 'admin'}
-          >
-            Admin Login
-          </button>
-        </div>
-
         <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
+          {/* Role Selection */}
+          <div className="form-group">
+            <label htmlFor="role">Login as</label>
+            <select id="role" value={role} onChange={(e) => setRole(e.target.value)} className="form-control">
+              <option value="seeker">Seeker</option>
+              <option value="provider">Provider</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
 
           {/* Email Field */}
           <div className="form-group">
