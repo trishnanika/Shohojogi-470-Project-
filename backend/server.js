@@ -31,11 +31,13 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/posts', require('./routes/posts')); // Unified posts route
 app.use('/api/services', require('./routes/services'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/applications', require('./routes/applications'));
 app.use('/api/hires', require('./routes/hire'));
 app.use('/api/messages', require('./routes/messages'));
+// Legacy routes (to be deprecated)
 app.use('/api/provider-posts', require('./routes/providerPosts'));
 app.use('/api/seeker-posts', require('./routes/seekerPosts'));
 

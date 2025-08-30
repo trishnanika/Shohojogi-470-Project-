@@ -200,7 +200,7 @@ const getProviderPost = async (req, res) => {
 const hireProviderService = async (req, res) => {
   try {
     const { _id, role } = req.user;
-    const { message } = req.body;
+    const { message, offeredAmount, notes } = req.body;
     const postId = req.params.id;
 
     if (role !== 'seeker') {
@@ -239,10 +239,11 @@ const hireProviderService = async (req, res) => {
             providerId: post.providerId,
             postId: post._id,
             postModel: 'ProviderPost',
-            notes: existingHire.message || message || 'Hire request',
+            notes: existingHire.message || notes || message || 'Hire request',
             status: 'confirmed',
             paymentStatus: 'pending',
-            amount: post.price || 0,
+            offeredAmount: offeredAmount || post.price || 0,
+            amount: offeredAmount || post.price || 0,
             currency: 'BDT'
           });
         }
@@ -258,9 +259,9 @@ const hireProviderService = async (req, res) => {
     // Add hire request to ProviderPost
     post.hiredBy.push({
       seekerId: _id,
-      message: message || 'Hire request',
+      message: notes || message || 'Hire request',
       hiredAt: new Date(),
-      status: 'pending'
+      status: 'accepted'
     });
 
     await post.save();
@@ -272,10 +273,11 @@ const hireProviderService = async (req, res) => {
         providerId: post.providerId,
         postId: post._id,
         postModel: 'ProviderPost',
-        notes: message || 'Hire request',
+        notes: notes || message || 'Hire request',
         status: 'confirmed',
         paymentStatus: 'pending',
-        amount: post.price || 0,
+        offeredAmount: offeredAmount || post.price || 0,
+        amount: offeredAmount || post.price || 0,
         currency: 'BDT'
       });
     } catch (e) {

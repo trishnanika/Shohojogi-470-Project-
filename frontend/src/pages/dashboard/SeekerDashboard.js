@@ -32,6 +32,9 @@ const SeekerDashboard = () => {
   const [selectedPostForView, setSelectedPostForView] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
+  const [applicants, setApplicants] = useState([]);
+  const [selectedPostApplicants, setSelectedPostApplicants] = useState(null);
+  const [showApplicantsModal, setShowApplicantsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingPost, setDeletingPost] = useState(null);
   const [showHireModal, setShowHireModal] = useState(false);
@@ -43,10 +46,12 @@ const SeekerDashboard = () => {
     title: '',
     description: '',
     category: '',
-    budget: { min: 0, max: 0 },
+    minRate: 0,
+    maxRate: 0,
+    vacancy: 1,
     location: { city: '', area: '' },
-    urgency: 'medium',
-    deadline: ''
+    serviceDate: '',
+    tags: []
   });
 
   useEffect(() => {
@@ -80,11 +85,76 @@ const SeekerDashboard = () => {
 
   const fetchMyPosts = async () => {
     try {
-      const { data } = await api.get('/api/seeker-posts/my-posts');
-      setMyPosts(data.data || []);
+      const response = await api.get('/api/seeker-posts/my-posts');
+      const posts = response.data.data || [];
+      
+      // Map budget object to minRate/maxRate for frontend compatibility
+      const postsWithBudget = posts.map(post => ({
+        ...post,
+        minRate: post.budget?.min || 0,
+        maxRate: post.budget?.max || 0
+      }));
+      
+      setMyPosts(postsWithBudget);
     } catch (error) {
       console.error('Error fetching posts:', error);
       showError('Failed to load posts');
+    }
+  };
+
+  const fetchPostApplicants = async (postId) => {
+    try {
+      const { data } = await api.get('/api/applications/received');
+      if (data.success) {
+        // Filter applications for the specific post
+        const postApplications = data.data.filter(app => app.postId._id === postId);
+        setApplicants(postApplications);
+        const post = myPosts.find(p => p._id === postId);
+        setSelectedPostApplicants({ ...post, applicants: postApplications });
+        setShowApplicantsModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching applicants:', error);
+      showError('Failed to load applicants');
+    }
+  };
+
+  const handleApplicationAction = async (applicationId, status) => {
+    try {
+      const { data } = await api.patch(`/api/applications/${applicationId}/status`, {
+        status
+      });
+      if (data.success) {
+        showSuccess(`Application ${status} successfully!`);
+        // Refresh applicants list
+        if (selectedPostApplicants) {
+          fetchPostApplicants(selectedPostApplicants._id);
+        }
+        // Refresh posts to update counts
+        fetchMyPosts();
+        // Refresh hire history if approved
+        if (status === 'approved') {
+          fetchHireHistory();
+        }
+      }
+    } catch (error) {
+      console.error(`Error ${status} application:`, error);
+      showError(`Failed to ${status} application`);
+    }
+  };
+
+  const updatePaymentStatus = async (hireId, paymentStatus) => {
+    try {
+      const { data } = await api.patch(`/api/hires/${hireId}/payment`, {
+        paymentStatus
+      });
+      if (data.success) {
+        showSuccess(`Payment status updated to ${paymentStatus}`);
+        fetchHireHistory();
+      }
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      showError('Failed to update payment status');
     }
   };
 
@@ -133,7 +203,7 @@ const SeekerDashboard = () => {
 
   const fetchHireHistory = async () => {
     try {
-      const { data } = await api.get('/api/hires/my-hires');
+      const { data } = await api.get('/api/hires/seeker-history');
       setHireHistory(data.data || []);
       if (data.data.length === 0) {
         showInfo('No hire history found');
@@ -147,16 +217,18 @@ const SeekerDashboard = () => {
   const handleCreatePost = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/api/seeker-posts', postForm);
+      await api.post('/api/posts/seeker', postForm);
       showSuccess('Post created successfully!');
       setPostForm({
         title: '',
         description: '',
         category: '',
-        budget: { min: 0, max: 0 },
+        minRate: 0,
+        maxRate: 0,
+        vacancy: 1,
         location: { city: '', area: '' },
-        urgency: 'medium',
-        deadline: ''
+        serviceDate: '',
+        tags: []
       });
       setActiveSection('dashboard');
     } catch (error) {
@@ -361,19 +433,19 @@ const SeekerDashboard = () => {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Min Budget (৳)</label>
+                  <label className="form-label">Min Rate (৳)</label>
                   <input
                     type="number"
-                    value={postForm.budget.min}
-                    onChange={(e) => setPostForm({...postForm, budget: {...postForm.budget, min: parseInt(e.target.value)}})}
+                    value={postForm.minRate}
+                    onChange={(e) => setPostForm({...postForm, minRate: parseInt(e.target.value)})}
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Max Budget (৳)</label>
+                  <label className="form-label">Max Rate (৳)</label>
                   <input
                     type="number"
-                    value={postForm.budget.max}
-                    onChange={(e) => setPostForm({...postForm, budget: {...postForm.budget, max: parseInt(e.target.value)}})}
+                    value={postForm.maxRate}
+                    onChange={(e) => setPostForm({...postForm, maxRate: parseInt(e.target.value)})}
                   />
                 </div>
               </div>
@@ -415,11 +487,22 @@ const SeekerDashboard = () => {
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Deadline (Optional)</label>
+                <label className="form-label">Service Date</label>
                 <input
                   type="date"
-                  value={postForm.deadline}
-                  onChange={(e) => setPostForm({...postForm, deadline: e.target.value})}
+                  value={postForm.serviceDate}
+                  onChange={(e) => setPostForm({...postForm, serviceDate: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Vacancy</label>
+                <input
+                  type="number"
+                  value={postForm.vacancy}
+                  onChange={(e) => setPostForm({...postForm, vacancy: parseInt(e.target.value)})}
+                  min="1"
+                  required
                 />
               </div>
               <div className="form-actions">
@@ -434,7 +517,7 @@ const SeekerDashboard = () => {
           <div className="my-posts-section">
             <div className="dashboard-header">
               <h1>My Posts</h1>
-              <p>Manage your service requests</p>
+              <p>Manage your service requests and applicants</p>
             </div>
             <div className="posts-list">
               {myPosts.length > 0 ? (
@@ -461,7 +544,28 @@ const SeekerDashboard = () => {
                         <span className={`post-status status-${post.status || 'active'}`}>
                           {post.status || 'active'}
                         </span>
-                        <span className="post-budget">৳{post.budget?.min} - ৳{post.budget?.max}</span>
+                        <span className="post-budget">৳{post.minRate} - ৳{post.maxRate}</span>
+                      </div>
+                      <div className="post-applicants-info">
+                        <div className="applicant-stats">
+                          <span className="applicant-badge">
+                            {post.applicationCount || 0} Applications
+                          </span>
+                          <span className="vacancy-info">
+                            {post.hiredCount || 0}/{post.vacancy || 1} Hired
+                          </span>
+                          {post.hiredCount >= post.vacancy && (
+                            <span className="vacancy-full-badge">Vacancy Full</span>
+                          )}
+                        </div>
+                        <div className="post-actions">
+                          <button 
+                            className="btn btn-secondary btn-small"
+                            onClick={() => fetchPostApplicants(post._id)}
+                          >
+                            <FaTasks /> View Applications ({post.applicationCount || 0})
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -606,7 +710,7 @@ const SeekerDashboard = () => {
           <div className="hire-history-section">
             <div className="dashboard-header">
               <h1>Hire History</h1>
-              <p>Your hiring records</p>
+              <p>Manage your hired providers and payment status</p>
             </div>
             <div className="hire-list">
               {hireHistory.length > 0 ? (
@@ -622,14 +726,29 @@ const SeekerDashboard = () => {
                         <span className={`hire-status status-${(hire.status || 'confirmed').toLowerCase()}`}>
                           {hire.status || 'confirmed'}
                         </span>
-                        {hire.amount > 0 && (
-                          <span className="hire-amount">{hire.amount} {hire.currency}</span>
+                        <span className={`payment-status status-${(hire.paymentStatus || 'pending').toLowerCase()}`}>
+                          Payment: {hire.paymentStatus || 'pending'}
+                        </span>
+                        {hire.offeredAmount > 0 && (
+                          <span className="hire-amount">৳{hire.offeredAmount}</span>
                         )}
+                      </div>
+                      {/* Seeker can always update payment status in hire history */}
+                      <div className="payment-actions">
+                        <select 
+                          value={hire.paymentStatus || 'pending'}
+                          onChange={(e) => updatePaymentStatus(hire._id, e.target.value)}
+                          className="payment-select"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="paid">Paid</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
                       </div>
                     </div>
                     <div className="hire-actions">
                       <button className="btn-small btn-outline" onClick={() => handleViewHire(hire)}>
-                        <FaEye /> View
+                        <FaEye /> View Details
                       </button>
                     </div>
                   </div>
@@ -638,7 +757,7 @@ const SeekerDashboard = () => {
                 <div className="empty-state">
                   <FaHistory size={48} />
                   <h3>No hire history found</h3>
-                  <p>You haven't hired any providers yet. Browse services to find providers.</p>
+                  <p>You haven't hired any providers yet. Approve applications to hire providers.</p>
                 </div>
               )}
             </div>
@@ -715,19 +834,19 @@ const SeekerDashboard = () => {
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Min Budget (৳)</label>
+                    <label className="form-label">Min Rate (৳)</label>
                     <input
                       type="number"
-                      value={postForm.budget.min}
-                      onChange={(e) => setPostForm({...postForm, budget: {...postForm.budget, min: parseInt(e.target.value)}})}
+                      value={postForm.minRate}
+                      onChange={(e) => setPostForm({...postForm, minRate: parseInt(e.target.value)})}
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Max Budget (৳)</label>
+                    <label className="form-label">Max Rate (৳)</label>
                     <input
                       type="number"
-                      value={postForm.budget.max}
-                      onChange={(e) => setPostForm({...postForm, budget: {...postForm.budget, max: parseInt(e.target.value)}})}
+                      value={postForm.maxRate}
+                      onChange={(e) => setPostForm({...postForm, maxRate: parseInt(e.target.value)})}
                     />
                   </div>
                 </div>
@@ -755,6 +874,84 @@ const SeekerDashboard = () => {
               <div className="modal-actions">
                 <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>Cancel</button>
                 <button className="btn btn-danger" onClick={confirmDeletePost}>Delete</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Applicants Modal */}
+        {showApplicantsModal && selectedPostApplicants && (
+          <div className="modal-overlay" onClick={() => setShowApplicantsModal(false)}>
+            <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Applicants for "{selectedPostApplicants.postTitle}"</h2>
+                <button className="modal-close" onClick={() => setShowApplicantsModal(false)}>×</button>
+              </div>
+              <div className="modal-body">
+                <div className="applicants-summary">
+                  <p><strong>Vacancy:</strong> {selectedPostApplicants.vacancy}</p>
+                  <p><strong>Hired:</strong> {selectedPostApplicants.hiredCount}/{selectedPostApplicants.vacancy}</p>
+                  <p><strong>Total Applicants:</strong> {applicants.length}</p>
+                </div>
+                <div className="applicants-list">
+                  {applicants.length > 0 ? (
+                    applicants.map(applicant => (
+                      <div key={applicant._id} className="applicant-item">
+                        <div className="applicant-info">
+                          <div className="applicant-header">
+                            <h4>{applicant.providerId?.name || 'Unknown Provider'}</h4>
+                            <span className={`status-badge status-${applicant.status}`}>
+                              {applicant.status}
+                            </span>
+                          </div>
+                          <p><strong>Email:</strong> {applicant.providerId?.email}</p>
+                          <p><strong>Phone:</strong> {applicant.providerId?.phone || 'N/A'}</p>
+                          <p><strong>Location:</strong> {applicant.providerId?.location?.city}, {applicant.providerId?.location?.area}</p>
+                          {applicant.offeredAmount > 0 && (
+                            <p><strong>Offered Amount:</strong> ৳{applicant.offeredAmount}</p>
+                          )}
+                          {applicant.message && (
+                            <p><strong>Message:</strong> {applicant.message}</p>
+                          )}
+                          <p><strong>Applied:</strong> {new Date(applicant.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <div className="applicant-actions">
+                          {applicant.status === 'pending' && selectedPostApplicants.hiredCount < selectedPostApplicants.vacancy && (
+                            <>
+                              <button 
+                                className="btn btn-success btn-small"
+                                onClick={() => handleApplicationAction(applicant._id, 'approved')}
+                              >
+                                Approve
+                              </button>
+                              <button 
+                                className="btn btn-danger btn-small"
+                                onClick={() => handleApplicationAction(applicant._id, 'rejected')}
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          {applicant.status === 'rejected' && selectedPostApplicants.hiredCount < selectedPostApplicants.vacancy && (
+                            <button 
+                              className="btn btn-success btn-small"
+                              onClick={() => handleApplicationAction(applicant._id, 'approved')}
+                            >
+                              Approve
+                            </button>
+                          )}
+                          {applicant.status === 'approved' && (
+                            <span className="approved-text">✓ Hired</span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="empty-state">
+                      <p>No applicants found for this post.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

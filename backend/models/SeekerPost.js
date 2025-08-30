@@ -70,6 +70,11 @@ const seekerPostSchema = new mongoose.Schema({
   deadline: {
     type: Date
   },
+  vacancy: {
+    type: Number,
+    default: 1,
+    min: [1, 'Vacancy must be at least 1']
+  },
   applicants: [{
     providerId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -80,12 +85,20 @@ const seekerPostSchema = new mongoose.Schema({
       default: Date.now
     },
     message: String,
+    offeredAmount: {
+      type: Number,
+      default: 0
+    },
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'rejected'],
+      enum: ['pending', 'approved', 'rejected'],
       default: 'pending'
     }
-  }]
+  }],
+  hiredCount: {
+    type: Number,
+    default: 0
+  }
 }, { 
   timestamps: true,
   toJSON: { virtuals: true },

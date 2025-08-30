@@ -1,8 +1,10 @@
 const Provider = require('../models/Provider');
 const Seeker = require('../models/Seeker');
 const Service = require('../models/Service');
+const Post = require('../models/Post');
 const ProviderPost = require('../models/ProviderPost');
 const SeekerPost = require('../models/SeekerPost');
+const Application = require('../models/Application');
 const Hire = require('../models/Hire');
 const User = require('../models/User');
 
@@ -60,71 +62,136 @@ const getAllPosts = async (req, res) => {
   try {
     const { postType, status, page = 1, limit = 10 } = req.query;
 
-    let posts = [];
-    let total = 0;
+    let allPosts = [];
 
+    // Get provider posts
     const providerPosts = await ProviderPost.find()
       .populate('providerId', 'name email')
       .sort({ createdAt: -1 });
 
+    // Get seeker posts  
     const seekerPosts = await SeekerPost.find()
       .populate('seekerId', 'name email')
       .sort({ createdAt: -1 });
 
-    posts = [
-      ...providerPosts.map(p => ({
-        _id: p._id,
-        title: p.title,
-        description: p.description,
-        location: p.location,
-        status: p.status,
-        createdAt: p.createdAt,
-        postType: 'Provider',
-        // Normalize price into a budget shape for 1-line UI
-        budget: p.price != null ? { min: p.price, max: p.price } : null,
-        author: p.providerId ? {
-          _id: p.providerId._id,
-          name: p.providerId.name,
-          email: p.providerId.email,
-          isBanned: !!p.providerId.isBanned
-        } : null
-      })),
-      ...seekerPosts.map(p => ({
-        _id: p._id,
-        title: p.title,
-        description: p.description,
-        category: p.category,
-        location: p.location,
-        status: p.status,
-        createdAt: p.createdAt,
-        postType: 'Seeker',
-        budget: p.budget || null,
-        author: p.seekerId ? {
-          _id: p.seekerId._id,
-          name: p.seekerId.name,
-          email: p.seekerId.email,
-          isBanned: !!p.seekerId.isBanned
-        } : null
-      }))
-    ];
+    // Format provider posts
+    const formattedProviderPosts = providerPosts.map(post => ({
+      _id: post._id,
+      title: post.title,
+      description: post.description,
+      category: post.category,
+      location: post.location,
+      status: post.status || 'active',
+      createdAt: post.createdAt,
+      postType: 'Provider',
+      author: post.providerId,
+      price: post.price,
+      priceType: post.priceType,
+      hiredBy: post.hiredBy || []
+    }));
 
-    // Sort by creation date (newest first)
-    posts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    // Format seeker posts
+    const formattedSeekerPosts = seekerPosts.map(post => ({
+      _id: post._id,
+      title: post.title,
+      description: post.description,
+      category: post.category,
+      location: post.location,
+      status: post.status || 'active',
+      createdAt: post.createdAt,
+      postType: 'Seeker',
+      author: post.seekerId,
+      budget: post.budget,
+      vacancy: post.vacancy,
+      applicants: post.applicants || []
+    }));
 
-    total = posts.length;
+    allPosts = [...formattedProviderPosts, ...formattedSeekerPosts];
 
-    const paginatedPosts = posts.slice((page - 1) * limit, page * limit);
+    // Get applications for each post
+    const allApplications = await Application.find()
+      .populate('providerId', 'name email')
+      .populate('postId', 'title');
+
+    // Get hire information
+    const allHires = await Hire.find()
+      .populate('providerId', 'name email')
+      .populate('seekerId', 'name email')
+      .populate('postId', 'title');
+
+    // Sort all posts by creation date
+    allPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    // Apply filters
+    let filteredPosts = allPosts;
+    
+    if (postType && postType !== 'all') {
+      filteredPosts = filteredPosts.filter(post => 
+        post.postType.toLowerCase() === postType.toLowerCase()
+      );
+    }
+    
+    if (status && status !== 'all') {
+      filteredPosts = filteredPosts.filter(post => post.status === status);
+    }
+
+    // Apply pagination
+    const skip = (page - 1) * limit;
+    const paginatedPosts = filteredPosts.slice(skip, skip + parseInt(limit));
+
+    // Add application and hire counts
+    const enrichedPosts = paginatedPosts.map(post => {
+      const postApplications = allApplications.filter(app => 
+        app.postId && app.postId._id.toString() === post._id.toString()
+      );
+      
+      const postHires = allHires.filter(hire => 
+        hire.postId && hire.postId._id.toString() === post._id.toString()
+      );
+
+      return {
+        ...post,
+        applicationCount: postApplications.length,
+        hireCount: postHires.length,
+        author: post.author ? {
+          _id: post.author._id,
+          name: post.author.name,
+          email: post.author.email,
+          isBanned: !!post.author.isBanned
+        } : null,
+        applications: postApplications.map(app => ({
+          _id: app._id,
+          provider: app.providerId,
+          offeredAmount: app.offeredAmount,
+          message: app.message,
+          status: app.status,
+          createdAt: app.createdAt
+        })),
+        hires: postHires.map(h => ({
+          _id: h._id,
+          provider: h.providerId,
+          seeker: h.seekerId,
+          amount: h.amount,
+          paymentStatus: h.paymentStatus,
+          status: h.status,
+          createdAt: h.createdAt
+        }))
+      };
+    });
+
+    const total = enrichedPosts.length;
+    const finalPosts = enrichedPosts.slice((page - 1) * limit, page * limit);
 
     res.status(200).json({
       success: true,
-      count: paginatedPosts.length,
+      count: finalPosts.length,
       total,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
         pages: Math.ceil(total / limit)
       },
-      data: paginatedPosts
+      data: finalPosts
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -136,25 +203,33 @@ const getAllPosts = async (req, res) => {
 // @access  Private/Admin
 const deletePost = async (req, res) => {
   try {
-    const { postType } = req.body; // Expect postType: 'Provider' or 'Seeker'
     const { id } = req.params;
 
-    let Model;
-    if (postType === 'Provider') {
-      Model = ProviderPost;
-    } else if (postType === 'Seeker') {
-      Model = SeekerPost;
-    } else {
-      return res.status(400).json({ success: false, message: 'Invalid post type' });
+    // Try to find the post in both collections
+    let post = await ProviderPost.findById(id);
+    let isProviderPost = true;
+    
+    if (!post) {
+      post = await SeekerPost.findById(id);
+      isProviderPost = false;
     }
-
-    const post = await Model.findByIdAndDelete(id);
 
     if (!post) {
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
 
-    res.status(200).json({ success: true, message: 'Post deleted successfully' });
+    // Cascade delete related applications and hire records
+    await Application.deleteMany({ postId: id });
+    await Hire.deleteMany({ postId: id });
+
+    // Delete the post from the appropriate collection
+    if (isProviderPost) {
+      await ProviderPost.findByIdAndDelete(id);
+    } else {
+      await SeekerPost.findByIdAndDelete(id);
+    }
+
+    res.status(200).json({ success: true, message: 'Post and related records deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }

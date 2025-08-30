@@ -8,7 +8,9 @@ const {
   applyToSeekerPost,
   updateSeekerPost,
   deleteSeekerPost,
-  getSeekerStats
+  getSeekerStats,
+  getPostApplicants,
+  updateApplicationStatus
 } = require('../controllers/seekerPostController');
 
 const router = express.Router();
@@ -23,6 +25,8 @@ router.post('/', protect, authorize('seeker'), createSeekerPost);
 router.put('/:id', protect, authorize('seeker'), updateSeekerPost);
 router.delete('/:id', protect, authorize('seeker'), deleteSeekerPost);
 router.post('/:id/apply', protect, authorize('provider'), applyToSeekerPost);
+router.get('/:id/applicants', protect, authorize('seeker'), getPostApplicants);
+router.patch('/:postId/applicants/:applicantId', protect, authorize('seeker'), updateApplicationStatus);
 
 // Public route for getting a single post by id
 router.get('/:id', getSeekerPost);

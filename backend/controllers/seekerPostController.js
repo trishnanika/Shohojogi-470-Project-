@@ -1,4 +1,5 @@
 const SeekerPost = require('../models/SeekerPost');
+const Application = require('../models/Application');
 const Hire = require('../models/Hire');
 
 // @desc    Create a new seeker request post
@@ -85,11 +86,19 @@ const getSeekerPosts = async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit));
 
+    // Map budget object to minRate/maxRate for frontend compatibility
+    const postsWithBudget = posts.map(post => {
+      const postObj = post.toObject();
+      postObj.minRate = post.budget?.min || 0;
+      postObj.maxRate = post.budget?.max || 0;
+      return postObj;
+    });
+
     const total = await SeekerPost.countDocuments(filter);
 
     res.status(200).json({
       success: true,
-      data: posts,
+      data: postsWithBudget,
       pagination: {
         current: parseInt(page),
         pages: Math.ceil(total / limit),
@@ -129,11 +138,36 @@ const getMySeekerPosts = async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit));
 
+    console.log('Found posts count:', posts.length);
+    
+    // Map budget object to minRate/maxRate for frontend compatibility
+    const postsWithBudget = posts.map((post, index) => {
+      const postObj = post.toObject();
+      console.log(`Post ${index + 1} - ID: ${post._id}, Title: ${post.title}`);
+      console.log(`Post ${index + 1} - Raw budget:`, post.budget);
+      console.log(`Post ${index + 1} - minRate field:`, post.minRate);
+      console.log(`Post ${index + 1} - maxRate field:`, post.maxRate);
+      
+      // Check if the post has minRate/maxRate fields directly (old format)
+      if (post.minRate !== undefined && post.maxRate !== undefined) {
+        postObj.minRate = post.minRate;
+        postObj.maxRate = post.maxRate;
+        console.log(`Post ${index + 1} - Using direct fields:`, { minRate: post.minRate, maxRate: post.maxRate });
+      } else {
+        // Use budget object (new format)
+        postObj.minRate = post.budget?.min || 0;
+        postObj.maxRate = post.budget?.max || 0;
+        console.log(`Post ${index + 1} - Using budget object:`, { minRate: postObj.minRate, maxRate: postObj.maxRate });
+      }
+      
+      return postObj;
+    });
+
     const total = await SeekerPost.countDocuments(filter);
 
     res.status(200).json({
       success: true,
-      data: posts,
+      data: postsWithBudget,
       pagination: {
         current: parseInt(page),
         pages: Math.ceil(total / limit),
@@ -231,10 +265,11 @@ const applyToSeekerPost = async (req, res) => {
       });
     }
 
-    // Check if already applied
-    const existingApplication = post.applicants.find(
-      app => app.providerId && app.providerId.toString() === _id.toString()
-    );
+    // Check if already applied using the Application model (consistent with getAllPosts)
+    const existingApplication = await Application.findOne({
+      postId: postId,
+      providerId: _id
+    });
 
     if (existingApplication) {
       return res.status(400).json({
@@ -247,13 +282,23 @@ const applyToSeekerPost = async (req, res) => {
     post.applicants.push({
       providerId: _id,
       message: message || '',
-      appliedAt: new Date()
+      offeredAmount: req.body.offeredAmount || 0,
+      appliedAt: new Date(),
+      status: 'pending'
     });
 
-    // Close the post to prevent further applications/hiring
-    post.status = 'completed';
-    post.closedBy = 'applied';
     await post.save();
+
+    // Create separate Application record for better management
+    await Application.create({
+      postId: post._id,
+      providerId: _id,
+      seekerId: post.seekerId,
+      postModel: 'SeekerPost',
+      message: message || '',
+      offeredAmount: req.body.offeredAmount || 0,
+      status: 'pending'
+    });
 
     res.status(200).json({
       success: true,
@@ -391,16 +436,160 @@ const deleteSeekerPost = async (req, res) => {
       });
     }
 
+    // Cascade delete related hire records
+    await Hire.deleteMany({ postId: id, postModel: 'SeekerPost' });
+
+    // Delete the post
     await SeekerPost.findByIdAndDelete(id);
 
     res.status(200).json({
       success: true,
-      message: 'Post deleted successfully'
+      message: 'Post and related records deleted successfully'
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Error deleting post',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get applicants for a seeker's post
+// @route   GET /api/seeker-posts/:id/applicants
+// @access  Private (Seeker only - own posts)
+const getPostApplicants = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { _id } = req.user;
+
+    const post = await SeekerPost.findById(id)
+      .populate('applicants.providerId', 'name email profileImage phone location');
+
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    // Check if user owns this post
+    if (post.seekerId.toString() !== _id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to view applicants for this post'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        postId: post._id,
+        postTitle: post.title,
+        vacancy: post.vacancy,
+        hiredCount: post.hiredCount,
+        applicants: post.applicants
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching applicants',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Approve or reject an application
+// @route   PATCH /api/seeker-posts/:postId/applicants/:applicantId
+// @access  Private (Seeker only - own posts)
+const updateApplicationStatus = async (req, res) => {
+  try {
+    const { postId, applicantId } = req.params;
+    const { status } = req.body;
+    const { _id } = req.user;
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status must be either "approved" or "rejected"'
+      });
+    }
+
+    const post = await SeekerPost.findById(postId);
+
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    // Check if user owns this post
+    if (post.seekerId.toString() !== _id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to manage applications for this post'
+      });
+    }
+
+    // Find the application
+    const applicationIndex = post.applicants.findIndex(
+      app => app._id.toString() === applicantId
+    );
+
+    if (applicationIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    const application = post.applicants[applicationIndex];
+
+    // Check vacancy limit for approvals
+    if (status === 'approved') {
+      if (post.hiredCount >= post.vacancy) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vacancy limit reached. Cannot approve more applications.'
+        });
+      }
+
+      // Create hire record
+      const hire = await Hire.create({
+        seekerId: _id,
+        providerId: application.providerId,
+        postId: postId,
+        postModel: 'SeekerPost',
+        applicationId: application._id,
+        amount: application.offeredAmount || post.budget?.max || 0,
+        currency: 'BDT',
+        status: 'confirmed',
+        paymentStatus: 'pending'
+      });
+
+      // Increment hired count
+      post.hiredCount += 1;
+    }
+
+    // Update application status
+    post.applicants[applicationIndex].status = status;
+    await post.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Application ${status} successfully`,
+      data: {
+        application: post.applicants[applicationIndex],
+        hiredCount: post.hiredCount,
+        vacancy: post.vacancy
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error updating application status',
       error: error.message
     });
   }
@@ -414,5 +603,7 @@ module.exports = {
   applyToSeekerPost,
   updateSeekerPost,
   deleteSeekerPost,
-  getSeekerStats
+  getSeekerStats,
+  getPostApplicants,
+  updateApplicationStatus
 };

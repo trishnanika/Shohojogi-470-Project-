@@ -12,17 +12,16 @@ const CreatePost = () => {
     title: '',
     description: '',
     category: '',
-    budget: {
-      min: '',
-      max: ''
-    },
+    vacancy: 1,
+    minRate: '',
+    maxRate: '',
     location: {
       city: '',
       area: ''
     },
     tags: '',
-    urgency: 'medium',
-    deadline: ''
+    serviceDate: '',
+    images: []
   });
 
   const categories = [
@@ -81,27 +80,20 @@ const CreatePost = () => {
         tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
       };
 
-      if (user.role === 'seeker') {
-        const payload = {
-          ...common,
-          urgency: formData.urgency,
-          deadline: formData.deadline ? new Date(formData.deadline) : null,
-          budget: {
-            min: parseFloat(formData.budget.min) || 0,
-            max: parseFloat(formData.budget.max) || 0
-          }
-        };
-        await api.post('/api/seeker-posts', payload);
-      } else {
-        // provider
-        const price = parseFloat(formData.budget.max || formData.budget.min) || 0;
-        const payload = {
-          ...common,
-          price,
-          images: []
-        };
-        await api.post('/api/provider-posts', payload);
+      const payload = {
+        ...common,
+        vacancy: parseInt(formData.vacancy) || 1,
+        minRate: parseFloat(formData.minRate) || 0,
+        maxRate: parseFloat(formData.maxRate) || 0,
+        images: formData.images || []
+      };
+
+      // Add role-specific fields
+      if (user.role === 'Seeker') {
+        payload.serviceDate = formData.serviceDate ? new Date(formData.serviceDate) : null;
       }
+
+      await api.post('/api/posts', payload);
 
       alert('Post created successfully!');
       navigate('/services');
@@ -184,48 +176,52 @@ const CreatePost = () => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="urgency">Priority</label>
-              <select
-                id="urgency"
-                name="urgency"
-                value={formData.urgency}
+              <label htmlFor="vacancy">Vacancy (Number of people needed) *</label>
+              <input
+                type="number"
+                id="vacancy"
+                name="vacancy"
+                value={formData.vacancy}
                 onChange={handleChange}
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
+                min="1"
+                max="50"
+                required
+              />
+              <small>How many people do you need for this job?</small>
             </div>
           </div>
 
           <div className="form-section">
-            <h3>Budget (Optional)</h3>
+            <h3>Rate Range *</h3>
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="budget.min">Minimum (৳)</label>
+                <label htmlFor="minRate">Minimum Rate (৳) *</label>
                 <input
                   type="number"
-                  id="budget.min"
-                  name="budget.min"
-                  value={formData.budget.min}
+                  id="minRate"
+                  name="minRate"
+                  value={formData.minRate}
                   onChange={handleChange}
-                  placeholder="0"
+                  placeholder="500"
                   min="0"
+                  required
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="budget.max">Maximum (৳)</label>
+                <label htmlFor="maxRate">Maximum Rate (৳) *</label>
                 <input
                   type="number"
-                  id="budget.max"
-                  name="budget.max"
-                  value={formData.budget.max}
+                  id="maxRate"
+                  name="maxRate"
+                  value={formData.maxRate}
                   onChange={handleChange}
-                  placeholder="0"
+                  placeholder="2000"
                   min="0"
+                  required
                 />
               </div>
             </div>
+            <small>Providers will offer their amount within this range</small>
           </div>
 
           <div className="form-section">
@@ -274,17 +270,21 @@ const CreatePost = () => {
             <small>Separate tags with commas</small>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="deadline">Deadline (Optional)</label>
-            <input
-              type="date"
-              id="deadline"
-              name="deadline"
-              value={formData.deadline}
-              onChange={handleChange}
-              min={new Date().toISOString().split('T')[0]}
-            />
-          </div>
+          {user.role === 'Seeker' && (
+            <div className="form-group">
+              <label htmlFor="serviceDate">Service Date {user.role === 'Seeker' ? '*' : '(Optional)'}</label>
+              <input
+                type="date"
+                id="serviceDate"
+                name="serviceDate"
+                value={formData.serviceDate}
+                onChange={handleChange}
+                min={new Date().toISOString().split('T')[0]}
+                required={user.role === 'Seeker'}
+              />
+              <small>When do you need this service?</small>
+            </div>
+          )}
 
           <div className="form-actions">
             <button 

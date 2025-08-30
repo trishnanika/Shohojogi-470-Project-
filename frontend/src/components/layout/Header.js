@@ -62,10 +62,7 @@ const Header = () => {
                 <Link to={getDashboardLink()} onClick={closeMenus}>Dashboard</Link>
                 <Link to="/profile" onClick={closeMenus}>Profile</Link>
                 {user.role === 'provider' && (
-                  <>
-                    <Link to="/create-service" onClick={closeMenus}>Post Service</Link>
-                    <Link to="/my-services" onClick={closeMenus}>My Services</Link>
-                  </>
+                  <Link to="/my-services" onClick={closeMenus}>My Services</Link>
                 )}
               </>
             )}

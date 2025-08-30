@@ -40,16 +40,14 @@ const AdminDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [statsResponse, usersResponse, servicesResponse, postsResponse] = await Promise.all([
+      const [statsResponse, usersResponse, postsResponse] = await Promise.all([
         api.get('/api/admin/stats'),
         api.get('/api/admin/users'),
-        api.get('/api/admin/services'),
         api.get('/api/admin/posts'),
       ]);
 
       setStats(statsResponse.data.data || stats);
       setUsers(usersResponse.data.data || []);
-      setServices(servicesResponse.data.data || []);
       setPosts(postsResponse.data.data || []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);

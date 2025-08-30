@@ -48,6 +48,7 @@ const ProviderDashboard = () => {
   const [applications, setApplications] = useState([]);
   const [messages, setMessages] = useState([]);
   const [myPosts, setMyPosts] = useState([]);
+  const [hireHistory, setHireHistory] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
@@ -64,6 +65,8 @@ const ProviderDashboard = () => {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [emailChangeRequest, setEmailChangeRequest] = useState('');
+  const [selectedHire, setSelectedHire] = useState(null);
+  const [showHireModal, setShowHireModal] = useState(false);
   const [postForm, setPostForm] = useState({
     title: '',
     description: '',
@@ -77,7 +80,7 @@ const ProviderDashboard = () => {
 
   const fetchMyServices = useCallback(async () => {
     try {
-      const { data } = await api.get('/api/services/my-services');
+      const { data } = await api.get('/api/posts/my-posts');
       setMyServices(data.data || []);
     } catch (e) {
       setMyServices([]);
@@ -112,6 +115,8 @@ const ProviderDashboard = () => {
       fetchMessages();
     } else if (section === 'myPosts') {
       fetchMyPosts();
+    } else if (section === 'hireHistory') {
+      fetchHireHistory();
     } else if (section === 'settings') {
       setShowSettingsModal(true);
     }
@@ -150,7 +155,7 @@ const ProviderDashboard = () => {
   const confirmDeletePost = async () => {
     if (!deletingPost) return;
     try {
-      await api.delete(`/api/provider-posts/${deletingPost._id}`);
+      await api.delete(`/api/posts/${deletingPost._id}`);
       showSuccess('Post deleted successfully!');
       setShowDeleteModal(false);
       setDeletingPost(null);
@@ -165,7 +170,7 @@ const ProviderDashboard = () => {
     e.preventDefault();
     if (!editingPost) return;
     try {
-      await api.put(`/api/provider-posts/${editingPost._id}`, postForm);
+      await api.put(`/api/posts/${editingPost._id}`, postForm);
       showSuccess('Post updated successfully!');
       setShowEditModal(false);
       setEditingPost(null);
@@ -214,11 +219,21 @@ const ProviderDashboard = () => {
 
   const fetchApplications = async () => {
     try {
-      const { data } = await api.get('/api/applications/received');
+      const { data } = await api.get('/api/applications/my-applications');
       setApplications(data.data || []);
     } catch (error) {
       console.error('Error fetching applications:', error);
       setApplications([]);
+    }
+  };
+
+  const fetchHireHistory = async () => {
+    try {
+      const { data } = await api.get('/api/hires/provider');
+      setHireHistory(data.data || []);
+    } catch (error) {
+      console.error('Error fetching hire history:', error);
+      setHireHistory([]);
     }
   };
 
@@ -266,7 +281,7 @@ const ProviderDashboard = () => {
 
   const fetchMyPosts = async () => {
     try {
-      const { data } = await api.get('/api/provider-posts/my-posts');
+      const { data } = await api.get('/api/posts/my-posts');
       setMyPosts(data.data || []);
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -275,18 +290,58 @@ const ProviderDashboard = () => {
 
   const handleApplicationAction = async (applicationId, action) => {
     try {
-      await api.patch(`/api/applications/${applicationId}`, { status: action });
-      showSuccess(`Application ${action === 'accepted' ? 'accepted' : 'rejected'} successfully`);
+      await api.patch(`/api/applications/${applicationId}/status`, { status: action });
+      showSuccess(`Application ${action === 'approved' ? 'approved' : 'rejected'} successfully`);
       fetchApplications();
     } catch (error) {
-      showError(`Failed to ${action === 'accepted' ? 'accept' : 'reject'} application`);
+      showError(`Failed to ${action === 'approved' ? 'approve' : 'reject'} application`);
     }
+  };
+
+  const updatePaymentStatus = async (hireId, paymentStatus) => {
+    try {
+      const { data } = await api.patch(`/api/hires/${hireId}/payment`, {
+        paymentStatus
+      });
+      if (data.success) {
+        showSuccess(`Payment status updated to ${paymentStatus}`);
+        fetchHireHistory();
+      }
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      showError('Failed to update payment status');
+    }
+  };
+
+  const updatePostPaymentStatus = async (postId, paymentStatus) => {
+    try {
+      // Get hires for this post and update payment status
+      const { data } = await api.get(`/api/hires/post/${postId}`);
+      if (data.success && data.data.length > 0) {
+        // Update payment status for all hires of this post
+        await Promise.all(data.data.map(hire => 
+          api.patch(`/api/hires/${hire._id}/payment`, { paymentStatus })
+        ));
+        showSuccess(`Payment status updated to ${paymentStatus} for all hires`);
+        // Refresh both my posts and hire history
+        fetchMyPosts();
+        fetchHireHistory();
+      }
+    } catch (error) {
+      console.error('Error updating post payment status:', error);
+      showError('Failed to update payment status');
+    }
+  };
+
+  const handleViewHire = (hire) => {
+    setSelectedHire(hire);
+    setShowHireModal(true);
   };
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/api/provider-posts', postForm);
+      await api.post('/api/posts/provider', postForm);
       showSuccess('Post created successfully!');
       setPostForm({
         title: '',
@@ -314,7 +369,7 @@ const ProviderDashboard = () => {
     } else if (name === 'price') {
       setPostForm({
         ...postForm,
-        price: parseInt(value) || 0
+        [name]: parseInt(value) || 0
       });
     } else {
       setPostForm({ ...postForm, [name]: value });
@@ -335,7 +390,7 @@ const ProviderDashboard = () => {
           area: form.location.area
         }
       };
-      const res = await api.post('/api/services', postBody);
+      const res = await api.post('/api/posts/provider', postBody);
       setPostSuccess('Service posted successfully!');
       showSuccess('Service posted successfully');
       setForm({ title: '', category: '', price: '', priceType: '', description: '', location: { city: '', area: '' } });
@@ -589,16 +644,18 @@ const ProviderDashboard = () => {
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Service Price (BDT)</label>
-                <input
-                  type="number"
-                  name="price"
-                  placeholder="Enter your service price"
-                  value={postForm.price}
-                  onChange={(e) => setPostForm({...postForm, price: parseInt(e.target.value) || 0})}
-                  required
-                  min="0"
-                />
+                <div className="form-group">
+                  <label className="form-label">Service Price (BDT)</label>
+                  <input
+                    type="number"
+                    name="price"
+                    placeholder="Your service price"
+                    value={postForm.price}
+                    onChange={handleFormChange}
+                    required
+                    min="0"
+                  />
+                </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
@@ -656,8 +713,8 @@ const ProviderDashboard = () => {
         {activeSection === 'applications' && (
           <div className="applications-section">
             <div className="dashboard-header">
-              <h1>Applications</h1>
-              <p>Manage applications to your posts</p>
+              <h1>My Applications</h1>
+              <p>Track your application status</p>
             </div>
             <div className="applications-list">
               {applications.length === 0 ? (
@@ -668,18 +725,36 @@ const ProviderDashboard = () => {
                 </div>
               ) : (
                 applications.map(application => (
-                  <div key={application.id || application._id} className="application-item">
+                  <div key={application._id} className="application-item">
                     <div className="application-info">
-                      <h4>{application.postTitle || application.post?.title}</h4>
-                      <p>Applicant: {application.applicant?.name || application.seeker?.name || 'N/A'}</p>
-                      <p>Message: {application.message}</p>
-                      <p>Status: <span className={`status status-${application.status}`}>{application.status}</span></p>
-                      <span className="date">{application.appliedAt ? new Date(application.appliedAt).toLocaleDateString() : ''}</span>
+                      <h4>{application.postId?.title || 'Untitled Post'}</h4>
+                      <p><strong>Seeker:</strong> {application.seekerId?.name || 'Unknown Seeker'}</p>
+                      <p><strong>Category:</strong> {application.postId?.category || 'N/A'}</p>
+                      <p><strong>Budget:</strong> ৳{application.postId?.minRate || 0} - ৳{application.postId?.maxRate || 0}</p>
+                      <p><strong>Your Offer:</strong> ৳{application.offeredAmount}</p>
+                      {application.message && (
+                        <p><strong>Your Message:</strong> {application.message}</p>
+                      )}
+                      <div className="application-meta">
+                        <span className="application-date">
+                          Applied: {new Date(application.createdAt).toLocaleDateString()}
+                        </span>
+                        <span className={`application-status status-${application.status}`}>
+                          {application.status === 'pending' && 'Pending'}
+                          {application.status === 'approved' && '✓ Approved'}
+                          {application.status === 'rejected' && '✗ Rejected'}
+                        </span>
+                      </div>
                     </div>
                     <div className="application-actions">
                       <button className="btn btn-outline btn-sm" onClick={() => handleViewApplication(application)}>
-                        <FaEye /> View
+                        <FaEye /> View Details
                       </button>
+                      {application.status === 'rejected' && (
+                        <button className="btn btn-primary btn-sm" onClick={() => window.location.href = `/services`}>
+                          Browse Posts
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))
@@ -687,6 +762,54 @@ const ProviderDashboard = () => {
             </div>
           </div>
         )}
+
+        {activeSection === 'hireHistory' && (
+          <div className="hire-history-section">
+            <div className="dashboard-header">
+              <h1>Hire History</h1>
+              <p>Jobs you've been hired for and payment status</p>
+            </div>
+            <div className="hire-list">
+              {hireHistory.length > 0 ? (
+                hireHistory.map(hire => (
+                  <div key={hire._id} className="hire-list-item">
+                    <div className="hire-list-content">
+                      <div className="hire-main-info">
+                        <h4 className="hire-title">{hire.postId?.title || 'Untitled Post'}</h4>
+                        <span className="hire-seeker">Seeker: {hire.seekerId?.name || 'Unknown Seeker'}</span>
+                      </div>
+                      <div className="hire-meta">
+                        <span className="hire-date">{new Date(hire.createdAt).toLocaleDateString()}</span>
+                        <span className={`hire-status status-${(hire.status || 'confirmed').toLowerCase()}`}>
+                          {hire.status || 'confirmed'}
+                        </span>
+                        <span className={`payment-status status-${(hire.paymentStatus || 'pending').toLowerCase()}`}>
+                          Payment: {hire.paymentStatus || 'pending'}
+                        </span>
+                        {hire.offeredAmount > 0 && (
+                          <span className="hire-amount">৳{hire.offeredAmount}</span>
+                        )}
+                      </div>
+                      {/* No payment controls in hire history for providers - they update in My Posts section */}
+                    </div>
+                    <div className="hire-actions">
+                      <button className="btn-small btn-outline" onClick={() => handleViewHire(hire)}>
+                        <FaEye /> View Details
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="empty-state">
+                  <FaClipboardList size={48} />
+                  <h3>No hire history found</h3>
+                  <p>You haven't been hired for any jobs yet. Keep applying to get hired!</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeSection === 'messages' && (
           <div className="messages-section">
             <div className="dashboard-header">
@@ -845,7 +968,49 @@ const ProviderDashboard = () => {
                         <span className={`post-status status-${(post.status || (post.isAvailable ? 'active' : 'inactive')).toLowerCase()}`}>
                           {post.status || (post.isAvailable ? 'active' : 'inactive')}
                         </span>
-                        <span className="post-budget">৳{post.price}</span>
+                        <span className="post-budget">৳{post.price || post.minRate} {post.maxRate ? `- ৳${post.maxRate}` : ''}</span>
+                      </div>
+                      <div className="post-applicants-info">
+                        <div className="applicant-stats">
+                          <span className="applicant-badge">
+                            {post.applicationCount || 0} Applications
+                          </span>
+                          {post.vacancy && (
+                            <span className="vacancy-info">
+                              {post.hiredCount || 0}/{post.vacancy} Hired
+                            </span>
+                          )}
+                          {post.hiredCount >= post.vacancy && (
+                            <span className="vacancy-full-badge">Vacancy Full</span>
+                          )}
+                        </div>
+                        {/* Payment status controls for hired seekers on provider posts */}
+                        {post.hiredBy && post.hiredBy.length > 0 && (
+                          <div className="hired-seekers-payment">
+                            <h5>Hired Seekers - Payment Status:</h5>
+                            {post.hiredBy.map((hire, index) => (
+                              <div key={hire.hireId || index} className="payment-controls">
+                                <span className="hired-seeker-name">{hire.seekerName || 'Seeker'}</span>
+                                <select 
+                                  value={hire.paymentStatus || 'pending'}
+                                  onChange={(e) => {
+                                    console.log('Updating payment for hire:', hire.hireId, 'to:', e.target.value);
+                                    if (hire.hireId) {
+                                      updatePaymentStatus(hire.hireId, e.target.value);
+                                    } else {
+                                      console.error('No hireId found for hire:', hire);
+                                    }
+                                  }}
+                                  className="payment-select"
+                                >
+                                  <option value="pending">Pending</option>
+                                  <option value="paid">Paid</option>
+                                  <option value="cancelled">Cancelled</option>
+                                </select>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -865,7 +1030,7 @@ const ProviderDashboard = () => {
                 <p>{selectedPostForView.description}</p>
                 <div className="meta">
                   <span>Category: {selectedPostForView.category}</span>
-                  <span>Price: ৳{selectedPostForView.price}</span>
+                  <span>Price: ৳{selectedPostForView.price || selectedPostForView.minRate} {selectedPostForView.maxRate ? `- ৳${selectedPostForView.maxRate}` : ''}</span>
                   <span>Location: {selectedPostForView.location?.city}{selectedPostForView.location?.area ? `, ${selectedPostForView.location.area}` : ''}</span>
                   {selectedPostForView.tags?.length ? (
                     <span>Tags: {selectedPostForView.tags.join(', ')}</span>
@@ -908,7 +1073,7 @@ const ProviderDashboard = () => {
                     </select>
                   </div>
                   <div className="form-group">
-                    <label>Price (BDT)</label>
+                    <label>Service Price (BDT)</label>
                     <input type="number" value={postForm.price} onChange={(e) => setPostForm({ ...postForm, price: parseInt(e.target.value) || 0 })} min={0} required />
                   </div>
                 </div>
